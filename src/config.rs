@@ -21,7 +21,7 @@ pub struct Config {
     #[arg(long, default_value_t = 30000)]
     pub reconnect_max_ms: u64,
 
-    #[arg(long, default_value = "0.0.0.0:9001")]
+    #[arg(long, default_value = "0.0.0.0:7001")]
     pub listen: String,
 
     #[arg(long, default_value = "line")]
