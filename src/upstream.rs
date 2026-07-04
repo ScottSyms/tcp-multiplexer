@@ -14,6 +14,25 @@ use crate::message::Message;
 use crate::multipart::{compute_affinity_key, parse_ais_multipart};
 use crate::queue::BoundedQueue;
 
+async fn wait_for_pause_or_shutdown(
+    pause_flag: &AtomicBool,
+    shutdown: &Notify,
+) -> Result<(), ()> {
+    tokio::select! {
+        biased;
+        _ = shutdown.notified() => {
+            Err(())
+        }
+        _ = async {
+            while pause_flag.load(Ordering::Acquire) {
+                time::sleep(Duration::from_millis(100)).await;
+            }
+        } => {
+            Ok(())
+        }
+    }
+}
+
 pub async fn upstream_reader_task(
     config: Config,
     queue: Arc<BoundedQueue>,
@@ -30,9 +49,11 @@ pub async fn upstream_reader_task(
     let mut reconnect_delay = reconnect_min;
 
     loop {
-        if pause_flag.load(Ordering::Acquire) {
-            time::sleep(Duration::from_millis(100)).await;
-            continue;
+        if wait_for_pause_or_shutdown(&pause_flag, &shutdown).await.is_err() {
+            tracing::info!("upstream reader shutting down");
+            upstream_connected.store(false, Ordering::Release);
+            metrics::gauge!("tcp_broker_upstream_connected").set(0.0);
+            return;
         }
 
         tracing::info!(addr = %addr, "connecting to upstream");
@@ -97,7 +118,16 @@ pub async fn upstream_reader_task(
 
                             match config.backpressure_policy {
                                 BackpressurePolicy::BlockUpstreamRead => {
-                                    queue.push(msg).await;
+                                    tokio::select! {
+                                        biased;
+                                        _ = shutdown.notified() => {
+                                            tracing::info!("upstream reader shutting down (blocked on push)");
+                                            upstream_connected.store(false, Ordering::Release);
+                                            metrics::gauge!("tcp_broker_upstream_connected").set(0.0);
+                                            return;
+                                        }
+                                        _ = queue.push(msg) => {}
+                                    }
                                 }
                                 BackpressurePolicy::DropNewest => {
                                     if !queue.try_push(msg).await {
