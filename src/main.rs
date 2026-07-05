@@ -15,6 +15,7 @@ use clap::Parser;
 use metrics::describe_counter;
 use metrics::describe_gauge;
 use metrics_exporter_prometheus::PrometheusBuilder;
+use tokio::io::AsyncBufReadExt;
 use tokio::sync::{mpsc, Notify};
 use tracing_subscriber::EnvFilter;
 
@@ -81,6 +82,10 @@ async fn main() -> anyhow::Result<()> {
             tracing::info!("shutdown signal received");
             shutdown.notify_waiters();
         }
+        _ = wait_for_quit() => {
+            tracing::info!("shutdown via 'q' key press");
+            shutdown.notify_waiters();
+        }
     }
 
     for handle in handles {
@@ -89,6 +94,17 @@ async fn main() -> anyhow::Result<()> {
 
     tracing::info!("broker shut down");
     Ok(())
+}
+
+async fn wait_for_quit() {
+    let stdin = tokio::io::BufReader::new(tokio::io::stdin());
+    let mut lines = stdin.lines();
+    while let Ok(Some(line)) = lines.next_line().await {
+        let trimmed = line.trim();
+        if trimmed == "q" || trimmed.ends_with('q') || trimmed.split_whitespace().any(|w| w == "q") {
+            break;
+        }
+    }
 }
 
 fn setup_logging() {

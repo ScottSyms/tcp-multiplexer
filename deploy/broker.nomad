@@ -31,8 +31,14 @@ job "tcp-ais-broker" {
     task "broker" {
       driver = "raw_exec"
 
+      artifact {
+        source      = "http://192.168.99.107:9000/binaries/tcp-ais-broker"
+        destination = "local/tcp-ais-broker"
+        mode        = "file"
+      }
+
       config {
-        command = "/opt/bin/tcp-ais-broker"
+        command = "local/tcp-ais-broker"
         args = [
           "--upstream-host", "153.44.253.27",
           "--upstream-port", "5631",
