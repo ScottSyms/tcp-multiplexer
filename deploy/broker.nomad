@@ -30,7 +30,7 @@ job "tcp-ais-broker" {
     }
 
     task "broker" {
-      driver = "raw_exec"
+      driver = "exec"
 
       artifact {
         source      = "http://192.168.99.107:9000/binaries/tcp-ais-broker"
