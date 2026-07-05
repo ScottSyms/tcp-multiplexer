@@ -7,7 +7,7 @@ job "tcp-ais-broker" {
 
     network {
       port "downstream" {
-        static = 9001
+        static = 7001
       }
       port "metrics" {
         static = 9101
@@ -17,6 +17,7 @@ job "tcp-ais-broker" {
     service {
       name = "tcp-ais-broker"
       port = "downstream"
+      provider = "consul"
 
       check {
         name     = "ready"
@@ -42,7 +43,7 @@ job "tcp-ais-broker" {
         args = [
           "--upstream-host", "153.44.253.27",
           "--upstream-port", "5631",
-          "--listen", "0.0.0.0:9001",
+          "--listen", "0.0.0.0:7001",
           "--metrics-listen", "0.0.0.0:9101",
           "--framing", "line",
           "--ais-multipart-mode", "affinity",
