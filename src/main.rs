@@ -102,9 +102,12 @@ async fn wait_for_quit() {
     while let Ok(Some(line)) = lines.next_line().await {
         let trimmed = line.trim();
         if trimmed == "q" || trimmed.ends_with('q') || trimmed.split_whitespace().any(|w| w == "q") {
-            break;
+            return;
         }
     }
+    // Stdin reached EOF (e.g. Nomad exec driver with no terminal).
+    // Wait forever so only Ctrl-C triggers shutdown.
+    std::future::pending::<()>().await;
 }
 
 fn setup_logging() {
